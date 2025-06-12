@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 
 from samplers.base_sampler import FeatureSampler
+from utils.pytorch_generators import init_torch_generator_from_seed
 
 
 class UniformFeatureSampler(FeatureSampler):
@@ -51,13 +52,8 @@ class UniformFeatureSampler(FeatureSampler):
         batch_size, n_features = x.shape
 
         # build a local RNG if a seed is provided
-        generator = torch.Generator(device=device)
-        if random_seed is not None:
-            generator.manual_seed(random_seed)
-        else:
-            generator = None  # torch.* calls will use the global RNG
+        generator = init_torch_generator_from_seed(random_seed, device=device)
 
-        # sample masks
         masks = torch.randint(
             low=0, high=2,
             size=(batch_size, n_coalitions, n_features),
@@ -65,14 +61,13 @@ class UniformFeatureSampler(FeatureSampler):
             generator=generator
         )
 
-        # expand & apply baseline
         x_expanded = x.unsqueeze(1).expand(-1, n_coalitions, -1).clone()  # (batch_size, n_coalitions, n_features)
         
         baseline_tensor = torch.ones_like(x_expanded) * self.baseline
         
-        #replace zero-masked vals with baseline value
         x_s = torch.where(masks.bool(), x_expanded, baseline_tensor)  # (batch_size, n_coalitions, n_features)
         
         x_s_flat = x_s.view(batch_size * n_coalitions, n_features)
         masks_flat = masks.view(batch_size * n_coalitions, n_features)
         return x_s_flat, masks_flat
+    
