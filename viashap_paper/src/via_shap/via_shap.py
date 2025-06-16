@@ -79,4 +79,4 @@ class ViaShapModel(nn.Module):
         Flatten shapley values to (batch_size, n_features * d_out).
         """
         values = self.get_shapley_values(x)
-        return values.view(x.size(0), -1)
+        return values.reshape(x.size(0), -1)
