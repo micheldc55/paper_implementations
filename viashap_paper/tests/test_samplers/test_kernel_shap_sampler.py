@@ -22,7 +22,7 @@ def test_sample_method_shape(input_tensor, kernel_shap_sampler, random_seed):
     n_coalitions = 1000
     x_s, masks = kernel_shap_sampler.sample(input_tensor, n_coalitions, random_seed=random_seed)
 
-    # Check shapes match and masks are binary
+    #check shapes match and masks are binary
     batch_size, n_features = input_tensor.shape
     assert x_s.shape == (batch_size * n_coalitions, n_features)
     assert masks.shape == (batch_size * n_coalitions, n_features)

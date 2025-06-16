@@ -1,8 +1,19 @@
-#  Copied from [here](https://github.com/amrmalkhatib/ViaSHAP/blob/main/ekan.py). --> THIS CODE IS NOT MINE, IT IS FROM https://github.com/Blealtan/efficient-kan and should be checked/credited
+import math
+from typing import Callable, Sequence
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-import math
+from models.base_models import ShapleyNetwork
+from torch import Tensor
+
+# -------------------------------------------------------------------------
+# Adapted from efficient-kan (KAN / KANLinear) (MIT License):
+#   Copyright (c) 2024 Huanqi Cao
+#
+# This file is (also) licensed under the MIT License:
+#   Copyright (c) 2025 Michel Davidovich
+# -------------------------------------------------------------------------
 
 
 class KANLinear(torch.nn.Module):
@@ -37,14 +48,12 @@ class KANLinear(torch.nn.Module):
         )
         self.register_buffer("grid", grid)
 
-        self.base_weight = torch.nn.Parameter(torch.Tensor(out_features, in_features))
+        self.base_weight = torch.nn.Parameter(Tensor(out_features, in_features))
         self.spline_weight = torch.nn.Parameter(
-            torch.Tensor(out_features, in_features, grid_size + spline_order)
+            Tensor(out_features, in_features, grid_size + spline_order)
         )
         if enable_standalone_scale_spline:
-            self.spline_scaler = torch.nn.Parameter(
-                torch.Tensor(out_features, in_features)
-            )
+            self.spline_scaler = torch.nn.Parameter(Tensor(out_features, in_features))
 
         self.scale_noise = scale_noise
         self.scale_base = scale_base
@@ -56,7 +65,9 @@ class KANLinear(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        torch.nn.init.kaiming_uniform_(self.base_weight, a=math.sqrt(5) * self.scale_base)
+        torch.nn.init.kaiming_uniform_(
+            self.base_weight, a=math.sqrt(5) * self.scale_base
+        )
         with torch.no_grad():
             noise = (
                 (
@@ -75,23 +86,23 @@ class KANLinear(torch.nn.Module):
             )
             if self.enable_standalone_scale_spline:
                 # torch.nn.init.constant_(self.spline_scaler, self.scale_spline)
-                torch.nn.init.kaiming_uniform_(self.spline_scaler, a=math.sqrt(5) * self.scale_spline)
+                torch.nn.init.kaiming_uniform_(
+                    self.spline_scaler, a=math.sqrt(5) * self.scale_spline
+                )
 
-    def b_splines(self, x: torch.Tensor):
+    def b_spline_basis(self, x: Tensor):
         """
         Compute the B-spline bases for the given input tensor.
 
         Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, in_features).
+            x (Tensor): Input tensor of shape (batch_size, in_features).
 
         Returns:
-            torch.Tensor: B-spline bases tensor of shape (batch_size, in_features, grid_size + spline_order).
+            Tensor: B-spline bases tensor of shape (batch_size, in_features, grid_size + spline_order).
         """
         assert x.dim() == 2 and x.size(1) == self.in_features
 
-        grid: torch.Tensor = (
-            self.grid
-        )  # (in_features, grid_size + 2 * spline_order + 1)
+        grid: Tensor = self.grid  # (in_features, grid_size + 2 * spline_order + 1)
         x = x.unsqueeze(-1)
         bases = ((x >= grid[:, :-1]) & (x < grid[:, 1:])).to(x.dtype)
         for k in range(1, self.spline_order + 1):
@@ -112,21 +123,21 @@ class KANLinear(torch.nn.Module):
         )
         return bases.contiguous()
 
-    def curve2coeff(self, x: torch.Tensor, y: torch.Tensor):
+    def curve2coeff(self, x: Tensor, y: Tensor):
         """
         Compute the coefficients of the curve that interpolates the given points.
 
         Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, in_features).
-            y (torch.Tensor): Output tensor of shape (batch_size, in_features, out_features).
+            x (Tensor): Input tensor of shape (batch_size, in_features).
+            y (Tensor): Output tensor of shape (batch_size, in_features, out_features).
 
         Returns:
-            torch.Tensor: Coefficients tensor of shape (out_features, in_features, grid_size + spline_order).
+            Tensor: Coefficients tensor of shape (out_features, in_features, grid_size + spline_order).
         """
         assert x.dim() == 2 and x.size(1) == self.in_features
         assert y.size() == (x.size(0), self.in_features, self.out_features)
 
-        A = self.b_splines(x).transpose(
+        A = self.b_spline_basis(x).transpose(
             0, 1
         )  # (in_features, batch_size, grid_size + spline_order)
         B = y.transpose(0, 1)  # (in_features, batch_size, out_features)
@@ -152,22 +163,27 @@ class KANLinear(torch.nn.Module):
             else 1.0
         )
 
-    def forward(self, x: torch.Tensor):
-        assert x.dim() == 2 and x.size(1) == self.in_features
+    def forward(self, x: Tensor):
+        assert x.size(-1) == self.in_features
+        original_shape = x.shape
+        x = x.reshape(-1, self.in_features)
 
         base_output = F.linear(self.base_activation(x), self.base_weight)
         spline_output = F.linear(
-            self.b_splines(x).view(x.size(0), -1),
+            self.b_spline_basis(x).view(x.size(0), -1),
             self.scaled_spline_weight.view(self.out_features, -1),
         )
-        return base_output + spline_output
+        output = base_output + spline_output
+
+        output = output.reshape(*original_shape[:-1], self.out_features)
+        return output
 
     @torch.no_grad()
-    def update_grid(self, x: torch.Tensor, margin=0.01):
+    def update_grid(self, x: Tensor, margin=0.01):
         assert x.dim() == 2 and x.size(1) == self.in_features
         batch = x.size(0)
 
-        splines = self.b_splines(x)  # (batch, in, coeff)
+        splines = self.b_spline_basis(x)  # (batch, in, coeff)
         splines = splines.permute(1, 0, 2)  # (in, batch, coeff)
         orig_coeff = self.scaled_spline_weight  # (out, in, coeff)
         orig_coeff = orig_coeff.permute(1, 2, 0)  # (in, coeff, out)
@@ -215,12 +231,7 @@ class KANLinear(torch.nn.Module):
         """
         Compute the regularization loss.
 
-        This is a dumb simulation of the original L1 regularization as stated in the
-        paper, since the original one requires computing absolutes and entropy from the
-        expanded (batch, in_features, out_features) intermediate tensor, which is hidden
-        behind the F.linear function if we want an memory efficient implementation.
-
-        The L1 regularization is now computed as mean absolute value of the spline
+        The L1 regularization is computed as mean absolute value of the spline
         weights. The authors implementation also includes this term in addition to the
         sample-based regularization.
         """
@@ -243,6 +254,7 @@ class KAN(torch.nn.Module):
         scale_noise=0.1,
         scale_base=1.0,
         scale_spline=1.0,
+        enable_standalone_scale_spline=True,
         base_activation=torch.nn.SiLU,
         grid_eps=0.02,
         grid_range=[-1, 1],
@@ -262,13 +274,14 @@ class KAN(torch.nn.Module):
                     scale_noise=scale_noise,
                     scale_base=scale_base,
                     scale_spline=scale_spline,
+                    enable_standalone_scale_spline=enable_standalone_scale_spline,
                     base_activation=base_activation,
                     grid_eps=grid_eps,
                     grid_range=grid_range,
                 )
             )
 
-    def forward(self, x: torch.Tensor, update_grid=False):
+    def forward(self, x: Tensor, update_grid=False):
         for layer in self.layers:
             if update_grid:
                 layer.update_grid(x)
@@ -280,3 +293,62 @@ class KAN(torch.nn.Module):
             layer.regularization_loss(regularize_activation, regularize_entropy)
             for layer in self.layers
         )
+
+
+class KANShapleyNetwork(ShapleyNetwork):
+    """
+    This is a simple wrapper that implements a Kolmogorov-Arnold Network as a ShapleyNetwork (phi).
+    The phi matrix part of the Shapley Regression is represented by a KAN.
+
+    Args:
+        n_features: number of input features.
+        d_out: output dimension per feature. The network outputs
+            n_features * d_out values and reshapes to (batch, n_features, d_out).
+        hidden_dims: sequence of hidden layer sizes between input and output.
+        grid_size: number of intervals for B-spline basis.
+        spline_order: order of B-spline basis.
+        noise_scale: scale factor for initial spline weight noise.
+        base_scale: scale factor for base weight initialization.
+        spline_scale: scale factor for initial spline weight.
+        activation: activation module for the base path.
+        grid_eps: blend factor between adaptive and uniform grids.
+        grid_range: two-element sequence specifying min and max values for the grid.
+    """
+
+    def __init__(
+        self,
+        n_features: int,
+        d_out: int = 1,
+        hidden_dims: Sequence[int] = (),
+        grid_size: int = 5,
+        spline_order: int = 3,
+        scale_noise: float = 0.1,
+        scale_base: float = 1.0,
+        scale_spline: float = 1.0,
+        enable_standalone_scale_spline: bool = True,
+        base_activation: Callable[[], nn.Module] = nn.SiLU,
+        grid_eps: float = 0.02,
+        grid_range: Sequence[float] = (-1.0, 1.0),
+    ) -> None:
+        super().__init__(n_features=n_features, d_out=d_out)
+        layers = [n_features, *hidden_dims, n_features * d_out]
+        self.kan = KAN(
+            layers_hidden=layers,
+            grid_size=grid_size,
+            spline_order=spline_order,
+            scale_noise=scale_noise,
+            scale_base=scale_base,
+            scale_spline=scale_spline,
+            enable_standalone_scale_spline=enable_standalone_scale_spline,
+            base_activation=base_activation,
+            grid_eps=grid_eps,
+            grid_range=grid_range,
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        batch_size, in_f = x.shape
+        assert (
+            in_f == self.n_features
+        ), f"Expected {self.n_features} features but got {in_f}"
+        out_flat = self.kan(x)
+        return out_flat.view(batch_size, self.n_features, self.d_out)
