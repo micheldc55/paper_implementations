@@ -1,12 +1,11 @@
 import math
+from typing import Callable, Sequence
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
-from typing import Sequence, Callable
-
 from models.base_models import ShapleyNetwork
-
+from torch import Tensor
 
 # -------------------------------------------------------------------------
 # Adapted from efficient-kan (KAN / KANLinear) (MIT License):
@@ -54,9 +53,7 @@ class KANLinear(torch.nn.Module):
             Tensor(out_features, in_features, grid_size + spline_order)
         )
         if enable_standalone_scale_spline:
-            self.spline_scaler = torch.nn.Parameter(
-                Tensor(out_features, in_features)
-            )
+            self.spline_scaler = torch.nn.Parameter(Tensor(out_features, in_features))
 
         self.scale_noise = scale_noise
         self.scale_base = scale_base
@@ -68,7 +65,9 @@ class KANLinear(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        torch.nn.init.kaiming_uniform_(self.base_weight, a=math.sqrt(5) * self.scale_base)
+        torch.nn.init.kaiming_uniform_(
+            self.base_weight, a=math.sqrt(5) * self.scale_base
+        )
         with torch.no_grad():
             noise = (
                 (
@@ -87,7 +86,9 @@ class KANLinear(torch.nn.Module):
             )
             if self.enable_standalone_scale_spline:
                 # torch.nn.init.constant_(self.spline_scaler, self.scale_spline)
-                torch.nn.init.kaiming_uniform_(self.spline_scaler, a=math.sqrt(5) * self.scale_spline)
+                torch.nn.init.kaiming_uniform_(
+                    self.spline_scaler, a=math.sqrt(5) * self.scale_spline
+                )
 
     def b_spline_basis(self, x: Tensor):
         """
@@ -101,9 +102,7 @@ class KANLinear(torch.nn.Module):
         """
         assert x.dim() == 2 and x.size(1) == self.in_features
 
-        grid: Tensor = (
-            self.grid
-        )  # (in_features, grid_size + 2 * spline_order + 1)
+        grid: Tensor = self.grid  # (in_features, grid_size + 2 * spline_order + 1)
         x = x.unsqueeze(-1)
         bases = ((x >= grid[:, :-1]) & (x < grid[:, 1:])).to(x.dtype)
         for k in range(1, self.spline_order + 1):
@@ -175,7 +174,7 @@ class KANLinear(torch.nn.Module):
             self.scaled_spline_weight.view(self.out_features, -1),
         )
         output = base_output + spline_output
-        
+
         output = output.reshape(*original_shape[:-1], self.out_features)
         return output
 
@@ -298,7 +297,7 @@ class KAN(torch.nn.Module):
 
 class KANShapleyNetwork(ShapleyNetwork):
     """
-    This is a simple wrapper that implements a Kolmogorov-Arnold Network as a ShapleyNetwork (phi). 
+    This is a simple wrapper that implements a Kolmogorov-Arnold Network as a ShapleyNetwork (phi).
     The phi matrix part of the Shapley Regression is represented by a KAN.
 
     Args:
@@ -315,6 +314,7 @@ class KANShapleyNetwork(ShapleyNetwork):
         grid_eps: blend factor between adaptive and uniform grids.
         grid_range: two-element sequence specifying min and max values for the grid.
     """
+
     def __init__(
         self,
         n_features: int,
@@ -347,6 +347,8 @@ class KANShapleyNetwork(ShapleyNetwork):
 
     def forward(self, x: Tensor) -> Tensor:
         batch_size, in_f = x.shape
-        assert in_f == self.n_features, f"Expected {self.n_features} features but got {in_f}"
+        assert (
+            in_f == self.n_features
+        ), f"Expected {self.n_features} features but got {in_f}"
         out_flat = self.kan(x)
         return out_flat.view(batch_size, self.n_features, self.d_out)

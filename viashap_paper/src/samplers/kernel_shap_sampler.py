@@ -1,11 +1,10 @@
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 import torch
-from torch import Tensor
-
 from samplers.base_sampler import FeatureSampler
+from torch import Tensor
 from utils.pytorch_generators import init_torch_generator_from_seed
-    
+
 
 class KernelShapSampler(FeatureSampler):
     """
@@ -17,6 +16,7 @@ class KernelShapSampler(FeatureSampler):
     n_features: total number of features n
     baseline:   float or (n_features,) tensor for masked-out positions
     """
+
     def __init__(self, n_features: int, baseline: float = 0.0):
         super().__init__(baseline=baseline)
         self.n_features = n_features
@@ -31,26 +31,30 @@ class KernelShapSampler(FeatureSampler):
         self.k_weights_cpu = (weights / weights.sum()).to(torch.float32)
 
     def sample(
-        self,
-        x: Tensor,
-        n_coalitions: int,
-        random_seed: Optional[int] = None
+        self, x: Tensor, n_coalitions: int, random_seed: Optional[int] = None
     ) -> Tuple[Tensor, Tensor]:
         device = x.device
         batch_size, n_features = x.shape
-        assert n_features == self.n_features, f"Expected {self.n_features} features, got {n_features}"
-        
+        assert (
+            n_features == self.n_features
+        ), f"Expected {self.n_features} features, got {n_features}"
+
         # set up generator for reproducibility
         generator = init_torch_generator_from_seed(random_seed, device=device)
 
         # move weights to device and sample k indices
         k_weights = self.k_weights_cpu.to(device)
         total = batch_size * n_coalitions
-        k_idx = torch.multinomial(k_weights, total, replacement=True, generator=generator) + 1
+        k_idx = (
+            torch.multinomial(k_weights, total, replacement=True, generator=generator)
+            + 1
+        )
         k_flat = k_idx.view(-1)  # shape = (total,)
 
         # generate a random matrix for selecting top-k
-        random_tensor = torch.rand((total, n_features), device=device, generator=generator)
+        random_tensor = torch.rand(
+            (total, n_features), device=device, generator=generator
+        )
         mask_flat = torch.zeros((total, n_features), device=device)
 
         # group rows by k and vectorize topk selection
@@ -66,9 +70,15 @@ class KernelShapSampler(FeatureSampler):
         x_exp = x.unsqueeze(1).expand(-1, n_coalitions, -1)
 
         if isinstance(self.baseline, torch.Tensor):
-            base = self.baseline.to(device).view(1,1,n_features).expand(batch_size, n_coalitions, n_features)
+            base = (
+                self.baseline.to(device)
+                .view(1, 1, n_features)
+                .expand(batch_size, n_coalitions, n_features)
+            )
         else:
             base = torch.ones_like(x_exp) * float(self.baseline)
         x_s = torch.where(masks.bool(), x_exp, base)
 
-        return x_s.view(batch_size * n_coalitions, n_features), masks.view(batch_size * n_coalitions, n_features)
+        return x_s.view(batch_size * n_coalitions, n_features), masks.view(
+            batch_size * n_coalitions, n_features
+        )

@@ -1,7 +1,9 @@
 import torch
 
 
-def init_torch_generator_from_seed(random_seed: int | None, device: str) -> torch.Generator:
+def init_torch_generator_from_seed(
+    random_seed: int | None, device: str
+) -> torch.Generator:
     """Initialize a PyTorch Generator with an optional random seed.
 
     Args:

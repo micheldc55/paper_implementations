@@ -443,14 +443,6 @@ wheels = [
 ]
 
 [[package]]
-name = "fastkan"
-version = "0.0.1"
-source = { git = "https://github.com/ZiyaoLi/fast-kan?rev=17b6540#17b65401c252334fffb5e63c9852dd8316d29e69" }
-dependencies = [
-    { name = "numpy" },
-]
-
-[[package]]
 name = "filelock"
 version = "3.18.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1658,7 +1650,6 @@ name = "paper-implementations"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "fastkan" },
     { name = "imbalanced-learn" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -1666,7 +1657,6 @@ dependencies = [
     { name = "pandas" },
     { name = "pytest" },
     { name = "shap" },
-    { name = "shapley-regression" },
     { name = "torch" },
 ]
 
@@ -1680,7 +1670,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fastkan", git = "https://github.com/ZiyaoLi/fast-kan?rev=17b6540" },
     { name = "imbalanced-learn", specifier = ">=0.13.0" },
     { name = "matplotlib", specifier = ">=3.10.3" },
     { name = "numpy", specifier = ">=2.2.6" },
@@ -1688,7 +1677,6 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "shap", specifier = ">=0.47.2" },
-    { name = "shapley-regression", git = "https://github.com/iancovert/shapley-regression.git" },
     { name = "torch", specifier = ">=2.7.0" },
 ]
 
@@ -2392,17 +2380,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/31/51/e12263118a3947cae5fb1a1f52d47ba0302b6712551b96790d734b16ddae/shap-0.47.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a256c08c3be20d4a2efc5e8266423b83f07efd5354f18d3c439d9faafd0e4358", size = 1021904, upload-time = "2025-04-17T18:14:42.465Z" },
     { url = "https://files.pythonhosted.org/packages/93/4f/748bd8891988c92476526c31136b416e98956cfd94355ca8910b525c9c09/shap-0.47.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:0d24483ea3e36cb57fe1d9d547577b71e981a7baa8d07f4c4a959bec9b7c94db", size = 2039854, upload-time = "2025-04-17T18:14:44.304Z" },
     { url = "https://files.pythonhosted.org/packages/f1/43/dd076925ec7544f14cd264cdc2019267bb26029d07e483027d6bddf19630/shap-0.47.2-cp312-cp312-win_amd64.whl", hash = "sha256:93be4e3fe4cc59582d6096c626b1443e30bcee2c7adda40af9d09ee0721647bc", size = 545222, upload-time = "2025-04-17T18:14:46.349Z" },
-]
-
-[[package]]
-name = "shapley-regression"
-version = "0.0.1"
-source = { git = "https://github.com/iancovert/shapley-regression.git#ea7d149d92408c8b219fc7b37ff2e71fc22050dc" }
-dependencies = [
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "scipy" },
-    { name = "tqdm" },
 ]
 
 [[package]]
