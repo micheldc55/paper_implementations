@@ -19,15 +19,15 @@ class KernelShapSampler(FeatureSampler):
     """
     def __init__(self, n_features: int, baseline: float = 0.0):
         super().__init__(baseline=baseline)
-        self.n = n_features
+        self.n_features = n_features
         # compute unnormalized weights in one vectorized pass
-        k = torch.arange(1, self.n, dtype=torch.float32)
+        k = torch.arange(1, self.n_features, dtype=torch.float32)
         log_c = (
-            torch.lgamma(torch.tensor(self.n + 1.0))
+            torch.lgamma(torch.tensor(self.n_features + 1.0))
             - torch.lgamma(k + 1.0)
-            - torch.lgamma((self.n - k) + 1.0)
+            - torch.lgamma((self.n_features - k) + 1.0)
         )
-        weights = torch.exp(-log_c) / (k * (self.n - k))
+        weights = torch.exp(-log_c) / (k * (self.n_features - k))
         self.k_weights_cpu = (weights / weights.sum()).to(torch.float32)
 
     def sample(
@@ -38,7 +38,7 @@ class KernelShapSampler(FeatureSampler):
     ) -> Tuple[Tensor, Tensor]:
         device = x.device
         batch_size, n_features = x.shape
-        assert n_features == self.n, f"Expected {self.n} features, got {n_features}"
+        assert n_features == self.n_features, f"Expected {self.n_features} features, got {n_features}"
         
         # set up generator for reproducibility
         generator = init_torch_generator_from_seed(random_seed, device=device)
