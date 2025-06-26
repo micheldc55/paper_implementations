@@ -22,3 +22,7 @@ dev = [
     "jupyterlab>=4.4.3",
     "marimo>=0.13.11",
 ]
+
+[tool.uv.sources]
+shapley-regression = { git = "https://github.com/iancovert/shapley-regression.git" }
+fastkan = { git = "https://github.com/ZiyaoLi/fast-kan", rev = "17b6540" }

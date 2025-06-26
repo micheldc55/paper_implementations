@@ -13,14 +13,16 @@ def input_tensor():
 
 
 @pytest.fixture
-def kernel_shap_sampler(input_tensor):
+def kernel_shap_sampler(input_tensor, random_seed):
     n_features = input_tensor.shape[1]
-    return KernelShapSampler(n_features=n_features, baseline=10.0)
+    sampler = KernelShapSampler(n_features=n_features, baseline=10.0)
+    sampler.set_seed(random_seed)
+    return sampler
 
 
-def test_sample_method_shape(input_tensor, kernel_shap_sampler, random_seed):
+def test_sample_method_shape(input_tensor, kernel_shap_sampler):
     n_coalitions = 1000
-    x_s, masks = kernel_shap_sampler.sample(input_tensor, n_coalitions, random_seed=random_seed)
+    x_s, masks = kernel_shap_sampler.sample(input_tensor, n_coalitions)
 
     #check shapes match and masks are binary
     batch_size, n_features = input_tensor.shape
@@ -29,10 +31,10 @@ def test_sample_method_shape(input_tensor, kernel_shap_sampler, random_seed):
     assert torch.all((masks == 0) | (masks == 1))
 
 
-def test_sample_method_shape(input_tensor, kernel_shap_sampler, random_seed):
+def test_sample_method_shape(input_tensor, kernel_shap_sampler):
     n_coalitions = 5
 
-    x1, m1 = kernel_shap_sampler.sample(input_tensor, n_coalitions=n_coalitions, random_seed=random_seed)
+    x1, m1 = kernel_shap_sampler.sample(input_tensor, n_coalitions=n_coalitions)
 
     x1_expected = torch.tensor([
         [ 1.,  2., 10., 10.],
@@ -63,12 +65,12 @@ def test_sample_method_shape(input_tensor, kernel_shap_sampler, random_seed):
     assert torch.allclose(m1, m1_expected)
 
 
-def test_sample_method_repeated_n_times(input_tensor, kernel_shap_sampler, random_seed):
+def test_sample_method_repeated_n_times(input_tensor, kernel_shap_sampler):
     n_coalitions = 3
 
     results = []
     for _ in range(10):
-        x_s, masks = kernel_shap_sampler.sample(input_tensor, n_coalitions, random_seed=random_seed)
+        x_s, masks = kernel_shap_sampler.sample(input_tensor, n_coalitions)
         results.append((x_s, masks))
 
     # Check all results are equal
