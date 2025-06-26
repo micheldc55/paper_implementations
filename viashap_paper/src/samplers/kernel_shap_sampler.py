@@ -31,7 +31,7 @@ class KernelShapSampler(FeatureSampler):
         self.k_weights_cpu = (weights / weights.sum()).to(torch.float32)
 
     def sample(
-        self, x: Tensor, n_coalitions: int, random_seed: Optional[int] = None
+        self, x: Tensor, n_coalitions: int
     ) -> Tuple[Tensor, Tensor]:
         device = x.device
         batch_size, n_features = x.shape
@@ -40,7 +40,7 @@ class KernelShapSampler(FeatureSampler):
         ), f"Expected {self.n_features} features, got {n_features}"
 
         # set up generator for reproducibility
-        generator = init_torch_generator_from_seed(random_seed, device=device)
+        generator = self._get_generator(device=device)
 
         # move weights to device and sample k indices
         k_weights = self.k_weights_cpu.to(device)

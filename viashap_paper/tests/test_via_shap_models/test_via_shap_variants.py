@@ -21,20 +21,17 @@ class DummyShapleyNetwork(ShapleyNetwork):
 
 @pytest.fixture
 def input_tensor():
-    # batch_size=2, n_features=3
     return torch.tensor([[1.0, 2.0, 3.0], [2.0, 1.0, 4.0]])
 
 
 @pytest.fixture
 def dummy_net(input_tensor):
-    # n_features inferred from input, d_out=1
     _, n = input_tensor.shape
     return DummyShapleyNetwork(n_features=n, d_out=1)
     
 
 def test_sigmoid_variant(dummy_net, input_tensor):
     model = ViaShapSigmoid(shapley_network=dummy_net)
-    # sum = 6, sigmoid(6)
     out = model(input_tensor)
     assert torch.allclose(out, torch.sigmoid(torch.tensor([[6.0], [7.0]])))
 
@@ -53,11 +50,10 @@ def test_softmax_variant():
 
     # shapley values: [[[1,1,1],[2,2,2]]] -> sums [3,3,3]
     out = model(x)
-    # softmax across d_out dim=1 of preds shape (1,3)
     expected = nn.functional.softmax(torch.tensor([[3.0, 3.0, 3.0]]), dim=1)
     assert torch.allclose(out, expected)
 
-    # test with bias
+    #test with bias
     model = ViaShapSoftmax(shapley_network=dummy, add_trainable_bias=True)
     model.bias.data.copy_(torch.tensor([0.0, 1.0, 2.0]))
     out2 = model(x)

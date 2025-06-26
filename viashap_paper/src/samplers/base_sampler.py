@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
+import torch
 from torch import Tensor
 
 
@@ -21,6 +22,18 @@ class FeatureSampler(ABC):
                   of means, etc.
         """
         self.baseline = baseline
+
+
+    def set_seed(self, seed: int):
+        self._seed = seed
+
+
+    def _get_generator(self, device: str):
+        g = torch.Generator(device=device)
+        if self._seed is not None:
+            g.manual_seed(self._seed)
+        return g
+
 
     @abstractmethod
     def sample(

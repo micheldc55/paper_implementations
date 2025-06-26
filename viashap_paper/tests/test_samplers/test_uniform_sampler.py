@@ -13,13 +13,15 @@ def input_tensor():
 
 
 @pytest.fixture
-def uniform_sampler():
-    return UniformFeatureSampler(baseline=10.0)
+def uniform_sampler(random_seed):
+    sampler = UniformFeatureSampler(baseline=10.0)
+    sampler.set_seed(random_seed)
+    return sampler
 
 
-def test_sample_method_shape(input_tensor, uniform_sampler, random_seed):
+def test_sample_method_shape(input_tensor, uniform_sampler):
     n_coalitions = 1000
-    x_s, masks = uniform_sampler.sample(input_tensor, n_coalitions, random_seed=random_seed)
+    x_s, masks = uniform_sampler.sample(input_tensor, n_coalitions)
 
     # Check shapes match and masks are binary
     batch_size, n_features = input_tensor.shape
@@ -28,9 +30,9 @@ def test_sample_method_shape(input_tensor, uniform_sampler, random_seed):
     assert torch.all((masks == 0) | (masks == 1))
 
 
-def test_sample_method_shape(input_tensor, uniform_sampler, random_seed):
+def test_sample_method_shape(input_tensor, uniform_sampler):
     n_coalitions = 3
-    x_s, masks = uniform_sampler.sample(input_tensor, n_coalitions, random_seed=random_seed)
+    x_s, masks = uniform_sampler.sample(input_tensor, n_coalitions)
 
     expected_masks = torch.tensor([
         [1., 1., 1., 0.],  # coal. 1
@@ -51,12 +53,12 @@ def test_sample_method_shape(input_tensor, uniform_sampler, random_seed):
     assert torch.allclose(torch.tensor(actual_values), expected_values)
 
 
-def test_sample_method_repeated_n_times(input_tensor, uniform_sampler, random_seed):
+def test_sample_method_repeated_n_times(input_tensor, uniform_sampler):
     n_coalitions = 3
 
     results = []
     for _ in range(10):
-        x_s, masks = uniform_sampler.sample(input_tensor, n_coalitions, random_seed=random_seed)
+        x_s, masks = uniform_sampler.sample(input_tensor, n_coalitions)
         results.append((x_s, masks))
 
     # Check all results are equal

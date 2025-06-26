@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import Optional, Callable
 
 import torch
@@ -7,9 +8,33 @@ from torch import Tensor
 from models.base_models import ShapleyNetwork
 
 
-class ViaShapModel(nn.Module):
+class BaseViaShapModel(ABC, nn.Module):
     """
-    Wrapper for a ShapleyNetwork that computes predictions by summing its output.
+    Abstract base class for any ViaSHAP model.
+
+    Subclasses must implement:
+    - forward(x): (batch_size, d_out)
+    - get_shapley_values(x): (batch_size, n_features, d_out)
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    @abstractmethod
+    def forward(self, x: Tensor) -> Tensor:
+        pass
+
+    def predict(self, x: Tensor) -> Tensor:
+        return self.forward(x)
+
+    @abstractmethod
+    def get_shapley_values(self, x: Tensor) -> Tensor:
+        pass
+
+
+class ViaShapModel(BaseViaShapModel):
+    """
+    Wrapper for a ShapleyNetwork that computes predictions by summing shapley values.
 
     Args:
         shapley_network: ShapleyNetwork instance returning values of shape
@@ -36,7 +61,7 @@ class ViaShapModel(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         """
-        Compute predictions by summing shapley values, then applying bias and link_fn.
+        Compute predictions by summing shapley values, applying bias and link_fn.
 
         Args:
             x: Tensor of shape (batch_size, n_features).
@@ -44,8 +69,7 @@ class ViaShapModel(nn.Module):
         Returns:
             Tensor of shape (batch_size, d_out).
         """
-        values = self.shapley_network(x)
-        preds = values.sum(dim=1)
+        preds = self.get_shapley_values(x).sum(dim=1)
 
         if hasattr(self, 'bias') and self.bias is not None:
             preds = preds + self.bias
@@ -65,14 +89,15 @@ class ViaShapModel(nn.Module):
         Returns:
             Tensor of shape (batch_size, d_out).
         """
-        with torch.no_grad():
-            return self.forward(x)
+        return self.forward(x)
+
 
     def get_shapley_values(self, x: Tensor) -> Tensor:
         """
         Retrieve raw shapley values of shape (batch_size, n_features, d_out).
         """
         return self.shapley_network(x)
+
 
     def get_local_importance(self, x: Tensor) -> Tensor:
         """

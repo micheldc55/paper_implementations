@@ -21,7 +21,7 @@ class UniformFeatureSampler(FeatureSampler):
         super().__init__(baseline=baseline)
 
     def sample(
-        self, x: Tensor, n_coalitions: int, random_seed: Optional[int] = None
+        self, x: Tensor, n_coalitions: int
     ) -> Tuple[Tensor, Tensor]:
         """
         Sample features using a Uniform distribution where each feature in the batch is
@@ -32,8 +32,6 @@ class UniformFeatureSampler(FeatureSampler):
             n_coalitions (int): Number of coalitions to draw. Equivalent to number of
                 experiments, the higher the numebr of coalitions the more robust the
                 results.
-            random_seed (Optional[int], optional): Whether you want to set up a random
-                seed for reproducibility. Defaults to None.
 
         Returns:
             Tuple[Tensor, Tensor]: Returns two tensors with shape
@@ -49,7 +47,7 @@ class UniformFeatureSampler(FeatureSampler):
         batch_size, n_features = x.shape
 
         # build a local RNG if a seed is provided
-        generator = init_torch_generator_from_seed(random_seed, device=device)
+        generator = self._get_generator(device=device)
 
         masks = torch.randint(
             low=0,
